@@ -3,7 +3,7 @@ services:
     name: farm-genie-bot
     env: node
     plan: free
-    buildCommand: npm install && npm run build
+    buildCommand: npm ci && npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV
@@ -14,5 +14,16 @@ services:
         sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
-      - key: WEBHOOK_URL
-        value: https://farm-genie-bot.onrender.com 
+    healthCheckPath: /health
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - src/**
+        - package.json
+        - tsconfig.json
+        - render.yaml
+        - .render/**
+    ignorePaths:
+      - node_modules/**
+      - .git/**
+      - dist/** 
