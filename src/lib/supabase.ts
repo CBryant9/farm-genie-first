@@ -6,11 +6,10 @@ dotenv.config();
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create Supabase client only if credentials are available
+export const supabase = supabaseUrl && supabaseAnonKey 
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 // TypeScript interfaces for our data
 export interface Profile {
@@ -40,6 +39,10 @@ export class UserService {
     first_name?: string;
     last_name?: string;
   }): Promise<Profile> {
+    if (!supabase) {
+      throw new Error('Supabase connection not available');
+    }
+
     // First, try to get existing user by telegram_id
     const { data: existingUser, error: fetchError } = await supabase
       .from('profiles')
@@ -97,6 +100,10 @@ export class UserService {
 
   // Get user stats for bot users only
   static async getUserStats(): Promise<UserStats> {
+    if (!supabase) {
+      throw new Error('Supabase connection not available');
+    }
+
     const { data: stats, error } = await supabase
       .rpc('get_bot_user_stats');
 
@@ -113,6 +120,10 @@ export class UserService {
 
   // Get user by telegram ID
   static async getUserByTelegramId(telegramId: string): Promise<Profile | null> {
+    if (!supabase) {
+      throw new Error('Supabase connection not available');
+    }
+
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -128,6 +139,10 @@ export class UserService {
 
   // Get all bot users (for admin purposes)
   static async getBotUsers(): Promise<Profile[]> {
+    if (!supabase) {
+      throw new Error('Supabase connection not available');
+    }
+
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -143,6 +158,10 @@ export class UserService {
 
   // Update user's bot activity
   static async updateBotActivity(telegramId: string): Promise<void> {
+    if (!supabase) {
+      throw new Error('Supabase connection not available');
+    }
+
     const { error } = await supabase
       .from('profiles')
       .update({ 
@@ -158,6 +177,10 @@ export class UserService {
 
   // Deactivate user's bot access
   static async deactivateBotUser(telegramId: string): Promise<void> {
+    if (!supabase) {
+      throw new Error('Supabase connection not available');
+    }
+
     const { error } = await supabase
       .from('profiles')
       .update({ 
@@ -169,5 +192,10 @@ export class UserService {
     if (error) {
       throw new Error(`Error deactivating bot user: ${error.message}`);
     }
+  }
+
+  // Check if Supabase is available
+  static isAvailable(): boolean {
+    return supabase !== null;
   }
 } 

@@ -95,6 +95,28 @@ Need help? Contact the bot administrator.
       return;
     }
 
+    // Check if Supabase is available
+    if (!UserService.isAvailable()) {
+      const fallbackMessage = `
+📊 Bot Status Report
+
+👤 Your Information:
+• Telegram ID: ${user.id}
+• Username: ${user.username || 'Not set'}
+• Name: ${user.first_name} ${user.last_name || ''}
+
+🌱 **Bot Status:**
+• Server: ✅ Running
+• Database: ❌ Not configured
+• Mode: Production
+
+💡 **Note:** Premium features require web app registration.
+      `.trim();
+
+      await this.bot.sendMessage(chatId, fallbackMessage);
+      return;
+    }
+
     try {
       // Get overall stats (only if database is accessible)
       const stats = await UserService.getUserStats();
