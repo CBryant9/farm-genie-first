@@ -32,34 +32,32 @@ export class CommandHandler {
       return;
     }
 
-    try {
-      // Save or update user in database
-      const dbUser = await UserService.getOrCreateUser(user.id.toString(), {
-        username: user.username,
-        first_name: user.first_name,
-        last_name: user.last_name
-      });
-
-      const welcomeMessage = `
+    const welcomeMessage = `
 🎉 Welcome to Farm Genie Bot!
 
 Hi ${user.first_name || 'there'}! I'm your farming assistant bot.
 
-Here's what I can do:
+🌱 **What I can do:**
+• Provide farming tips and advice
+• Weather updates for your location
+• Crop management reminders
+• Market price alerts
+• Farming best practices
+
+📋 **Available Commands:**
 • /start - Show this welcome message
 • /help - Show available commands
 • /status - Show bot statistics
 
-I'll help you with farming tips, weather updates, and more!
+🔗 **Getting Started:**
+To access premium features, please sign up through our web app where you can manage your subscription and preferences.
 
-Your profile ID: ${dbUser.id}
-      `.trim();
+I'm here to help with your farming journey! 🌾
 
-      await this.bot.sendMessage(chatId, welcomeMessage);
-    } catch (error) {
-      console.error('Error handling start command:', error);
-      await this.bot.sendMessage(chatId, 'Sorry, there was an error processing your request.');
-    }
+Your Telegram ID: ${user.id}
+    `.trim();
+
+    await this.bot.sendMessage(chatId, welcomeMessage);
   }
 
   private async handleHelp(msg: TelegramBot.Message): Promise<void> {
@@ -72,11 +70,15 @@ Your profile ID: ${dbUser.id}
 /help - Show this help message
 /status - Show bot statistics and user info
 
-More features coming soon:
+🌱 **Coming Soon:**
 • Weather updates for your location
 • Farming tips and advice
 • Crop management reminders
 • Market price alerts
+• Personalized recommendations
+
+🔗 **Premium Features:**
+For advanced features and personalized recommendations, please sign up through our web app.
 
 Need help? Contact the bot administrator.
     `.trim();
@@ -94,13 +96,10 @@ Need help? Contact the bot administrator.
     }
 
     try {
-      // Get user info from database
-      const dbUser = await UserService.getUserByTelegramId(user.id.toString());
-      
-      // Get overall stats
+      // Get overall stats (only if database is accessible)
       const stats = await UserService.getUserStats();
 
-      let statusMessage = `
+      const statusMessage = `
 📊 Bot Status Report
 
 🤖 Bot Statistics:
@@ -112,25 +111,37 @@ Need help? Contact the bot administrator.
 • Telegram ID: ${user.id}
 • Username: ${user.username || 'Not set'}
 • Name: ${user.first_name} ${user.last_name || ''}
+
+🌱 **Bot Status:**
+• Server: ✅ Running
+• Database: ✅ Connected
+• Mode: Production
+
+💡 **Note:** Premium features require web app registration.
       `.trim();
-
-      if (dbUser) {
-        statusMessage += `
-📅 Bot Account Details:
-• Bot registered: ${dbUser.bot_registered_at ? new Date(dbUser.bot_registered_at).toLocaleDateString() : 'Unknown'}
-• Last bot activity: ${dbUser.last_bot_activity ? new Date(dbUser.last_bot_activity).toLocaleDateString() : 'Unknown'}
-• Bot status: ${dbUser.is_bot_active ? '🟢 Active' : '🔴 Inactive'}
-        `;
-
-        if (dbUser.full_name) {
-          statusMessage += `• Full name: ${dbUser.full_name}\n`;
-        }
-      }
 
       await this.bot.sendMessage(chatId, statusMessage);
     } catch (error) {
       console.error('Error handling status command:', error);
-      await this.bot.sendMessage(chatId, 'Sorry, there was an error getting the status.');
+      
+      // Fallback message if database is not accessible
+      const fallbackMessage = `
+📊 Bot Status Report
+
+👤 Your Information:
+• Telegram ID: ${user.id}
+• Username: ${user.username || 'Not set'}
+• Name: ${user.first_name} ${user.last_name || ''}
+
+🌱 **Bot Status:**
+• Server: ✅ Running
+• Database: ⚠️ Limited access
+• Mode: Production
+
+💡 **Note:** Premium features require web app registration.
+      `.trim();
+
+      await this.bot.sendMessage(chatId, fallbackMessage);
     }
   }
 
@@ -150,7 +161,9 @@ Try these commands:
 • /help - See available commands
 • /status - Check bot status
 
-More features are coming soon! 🌱
+🌱 More features are coming soon!
+
+💡 **Premium Features:** For personalized farming advice and advanced features, please sign up through our web app.
       `.trim();
 
       await this.bot.sendMessage(chatId, response);
