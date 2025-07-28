@@ -1,5 +1,5 @@
 import TelegramBot from 'node-telegram-bot-api';
-import express from 'express';
+import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
 import { CommandHandler } from './bot/handlers/commandHandler';
 
@@ -44,18 +44,18 @@ if (isProduction && webhookUrl) {
   
   bot.setWebHook(fullWebhookUrl).then(() => {
     console.log(`✅ Webhook set to: ${fullWebhookUrl}`);
-  }).catch((error) => {
+  }).catch((error: any) => {
     console.error('❌ Failed to set webhook:', error);
   });
 
   // Webhook endpoint
-  app.post(webhookPath, (req, res) => {
+  app.post(webhookPath, (req: Request, res: Response) => {
     bot.handleUpdate(req.body);
     res.sendStatus(200);
   });
 
   // Health check endpoint
-  app.get('/health', (req, res) => {
+  app.get('/health', (req: Request, res: Response) => {
     res.json({ 
       status: 'ok', 
       timestamp: new Date().toISOString(),
@@ -65,7 +65,7 @@ if (isProduction && webhookUrl) {
   });
 
   // Test webhook endpoint (bonus feature)
-  app.get('/test-webhook', async (req, res) => {
+  app.get('/test-webhook', async (req: Request, res: Response) => {
     try {
       const webhookInfo = await bot.getWebhookInfo();
       res.json({
@@ -73,7 +73,7 @@ if (isProduction && webhookUrl) {
         webhook_info: webhookInfo,
         timestamp: new Date().toISOString()
       });
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({
         status: 'error',
         message: 'Failed to get webhook info',
@@ -89,7 +89,7 @@ if (isProduction && webhookUrl) {
   bot = new TelegramBot(botToken, { polling: true });
 
   // Health check endpoint for polling mode
-  app.get('/health', (req, res) => {
+  app.get('/health', (req: Request, res: Response) => {
     res.json({ 
       status: 'ok', 
       timestamp: new Date().toISOString(),
@@ -102,15 +102,15 @@ if (isProduction && webhookUrl) {
 const commandHandler = new CommandHandler(bot);
 
 // Bot event handlers
-bot.on('polling_error', (error) => {
+bot.on('polling_error', (error: any) => {
   console.error('❌ Polling error:', error);
 });
 
-bot.on('webhook_error', (error) => {
+bot.on('webhook_error', (error: any) => {
   console.error('❌ Webhook error:', error);
 });
 
-bot.on('error', (error) => {
+bot.on('error', (error: any) => {
   console.error('❌ Bot error:', error);
 });
 
