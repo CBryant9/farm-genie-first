@@ -346,9 +346,247 @@ farm-genie-first-bot/
 - The bot uses Supabase's anon key for database access
 - Consider implementing additional security measures for production use
 
+## 🧪 Comprehensive Testing Checklist
+
+**Before deploying to production, thoroughly test all features:**
+
+### 🔐 **Authentication & User Management Tests**
+
+#### New User Flow (Email Verification)
+- [ ] **Test 1**: Send `/start` to bot as new user
+  - Expected: Bot asks for email address
+  - Expected: Bot sets user to 'awaiting_email' state
+- [ ] **Test 2**: Provide invalid email format
+  - Expected: Bot shows error message asking for valid email
+- [ ] **Test 3**: Provide email that doesn't exist in database
+  - Expected: Bot shows "Email not found" message
+- [ ] **Test 4**: Provide valid email from existing profile
+  - Expected: Bot successfully links Telegram to profile
+  - Expected: Bot clears 'awaiting_email' state
+  - Expected: Bot shows welcome message with user's name
+  - Expected: Cache is invalidated for this user
+
+#### Returning User Flow
+- [ ] **Test 5**: Send `/start` to bot as existing user
+  - Expected: Bot recognizes user immediately
+  - Expected: Bot shows "Welcome back" message
+  - Expected: Bot shows subscription status
+  - Expected: Bot updates last_activity timestamp
+
+### 💳 **Subscription Status Tests**
+
+#### Active Subscription
+- [ ] **Test 6**: User with 'active' subscription sends message
+  - Expected: Bot processes message normally
+  - Expected: Bot shows "Your subscription is active" in /status
+  - Expected: User can access all features
+
+#### Inactive Subscription
+- [ ] **Test 7**: User with 'inactive' subscription sends message
+  - Expected: Bot shows subscription warning
+  - Expected: Bot provides billing link
+  - Expected: Bot doesn't process farming queries
+
+#### Cancelled Subscription
+- [ ] **Test 8**: User with 'cancelled' subscription sends message
+  - Expected: Bot shows cancellation message
+  - Expected: Bot provides reactivation link
+  - Expected: Bot doesn't process farming queries
+
+#### No Subscription
+- [ ] **Test 9**: User with no subscription status sends message
+  - Expected: Bot shows "subscription not set" message
+  - Expected: Bot provides subscription link
+
+### 📦 **Cache System Tests**
+
+#### Cache Performance
+- [ ] **Test 10**: First subscription status request
+  - Expected: Cache miss (database query performed)
+  - Expected: Result cached for 15 minutes
+- [ ] **Test 11**: Second subscription status request (within 15 min)
+  - Expected: Cache hit (fast response, no database query)
+- [ ] **Test 12**: Check cache stats endpoint
+  - Expected: `/cache-stats` shows cache performance metrics
+  - Expected: Shows hit rate, total entries, active entries
+
+#### Cache Invalidation
+- [ ] **Test 13**: Manual cache invalidation
+  - Expected: `POST /invalidate-cache/{telegramId}` clears user's cache
+  - Expected: Next request fetches fresh data from database
+- [ ] **Test 14**: Cache expiration
+  - Expected: After 15 minutes, cache entry expires
+  - Expected: Fresh data fetched from database
+
+### 🔄 **State Management Tests**
+
+#### Email Verification State
+- [ ] **Test 15**: User in 'awaiting_email' state
+  - Expected: Bot treats next message as email input
+  - Expected: State expires after 10 minutes of inactivity
+- [ ] **Test 16**: State cleanup
+  - Expected: Old states automatically cleaned up
+  - Expected: No memory leaks from expired states
+
+### 🤖 **Command Tests**
+
+#### /start Command
+- [ ] **Test 17**: New user /start
+  - Expected: Email verification flow initiated
+- [ ] **Test 18**: Returning user /start
+  - Expected: Welcome back message with subscription status
+
+#### /help Command
+- [ ] **Test 19**: Authenticated user /help
+  - Expected: Shows available commands
+  - Expected: Shows subscription status
+- [ ] **Test 20**: Unauthenticated user /help
+  - Expected: Prompts to use /start first
+
+#### /status Command
+- [ ] **Test 21**: Authenticated user /status
+  - Expected: Shows user profile info
+  - Expected: Shows subscription status
+  - Expected: Shows bot activity status
+- [ ] **Test 22**: Unauthenticated user /status
+  - Expected: Prompts to use /start first
+
+#### /profile Command
+- [ ] **Test 23**: Authenticated user /profile
+  - Expected: Shows detailed profile information
+  - Expected: Shows bot registration details
+  - Expected: Shows subscription information
+- [ ] **Test 24**: Unauthenticated user /profile
+  - Expected: Prompts to use /start first
+
+### 🌱 **Message Processing Tests**
+
+#### Authenticated Active User
+- [ ] **Test 25**: Send farming-related message
+  - Expected: Bot acknowledges message
+  - Expected: Bot shows placeholder for future features
+  - Expected: Bot updates activity timestamp
+
+#### Unauthenticated User
+- [ ] **Test 26**: Send message without /start
+  - Expected: Bot prompts to use /start first
+  - Expected: Bot doesn't process the message
+
+### 🔧 **System Health Tests**
+
+#### Health Endpoints
+- [ ] **Test 27**: Health check endpoint
+  - Expected: `GET /health` returns system status
+  - Expected: Shows state manager stats
+  - Expected: Shows cache stats
+- [ ] **Test 28**: Webhook info endpoint
+  - Expected: `GET /test-webhook` returns webhook configuration
+- [ ] **Test 29**: Cache stats endpoint
+  - Expected: `GET /cache-stats` returns detailed cache metrics
+
+#### Error Handling
+- [ ] **Test 30**: Invalid email format
+  - Expected: Proper error message
+  - Expected: User can retry
+- [ ] **Test 31**: Database connection issues
+  - Expected: Graceful error handling
+  - Expected: User-friendly error messages
+- [ ] **Test 32**: Invalid commands
+  - Expected: Bot ignores or provides help
+
+### 📊 **Performance Tests**
+
+#### Response Times
+- [ ] **Test 33**: Cache hit response time
+  - Expected: < 100ms for cached data
+- [ ] **Test 34**: Cache miss response time
+  - Expected: < 500ms for database queries
+- [ ] **Test 35**: Command response time
+  - Expected: < 200ms for simple commands
+
+#### Memory Usage
+- [ ] **Test 36**: Monitor memory usage
+  - Expected: No memory leaks over time
+  - Expected: Cache cleanup working properly
+  - Expected: State cleanup working properly
+
+### 🗄️ **Database Tests**
+
+#### Data Integrity
+- [ ] **Test 37**: User linking process
+  - Expected: Telegram ID correctly linked to profile
+  - Expected: Bot activity timestamps updated
+  - Expected: No duplicate entries created
+- [ ] **Test 38**: Subscription data
+  - Expected: Subscription status correctly stored
+  - Expected: Stripe customer ID linked properly
+  - Expected: Data accessible via RLS policies
+
+### 🔒 **Security Tests**
+
+#### Access Control
+- [ ] **Test 39**: RLS policy enforcement
+  - Expected: Users can only access their own data
+  - Expected: Bot can access all user data
+  - Expected: Web app can update subscription data
+- [ ] **Test 40**: Environment variable security
+  - Expected: No secrets exposed in logs
+  - Expected: .env file not committed to Git
+
+### 📱 **Integration Tests**
+
+#### End-to-End Flow
+- [ ] **Test 41**: Complete new user journey
+  - Expected: Email verification → Account linking → Welcome message
+- [ ] **Test 42**: Complete returning user journey
+  - Expected: Recognition → Status check → Feature access
+- [ ] **Test 43**: Subscription status change
+  - Expected: Cache invalidation → Fresh data → Updated messages
+
+### 🚀 **Deployment Tests**
+
+#### Production Readiness
+- [ ] **Test 44**: Render deployment
+  - Expected: Bot starts successfully
+  - Expected: Webhook configured correctly
+  - Expected: Environment variables loaded
+- [ ] **Test 45**: Health monitoring
+  - Expected: Health endpoints accessible
+  - Expected: Logs showing normal operation
+  - Expected: No critical errors
+
+---
+
+## 🎯 **Testing Instructions**
+
+### **Step 1: Prepare Test Data**
+1. Create test users in your Supabase `profiles` table with different subscription statuses
+2. Note down their email addresses and Telegram IDs
+3. Set up test subscription data (active, inactive, cancelled, null)
+
+### **Step 2: Run Tests**
+1. Deploy bot to Render
+2. Use the testing script: `node test-bot-system.js`
+3. Manually test each scenario with real Telegram messages
+4. Monitor logs and health endpoints
+
+### **Step 3: Document Results**
+- Check off each test as you complete it
+- Note any failures or unexpected behavior
+- Document response times and performance metrics
+- Keep track of any issues that need fixing
+
+### **Step 4: Fix Issues**
+- Address any failed tests before going live
+- Optimize performance if needed
+- Update error handling if issues found
+- Re-test after fixes
+
+---
+
 ## 🚀 Next Steps
 
-Once your bot is working, you can:
+Once testing is complete, you can:
 
 ### Immediate Enhancements:
 - Add more commands and features

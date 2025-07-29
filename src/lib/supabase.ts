@@ -16,6 +16,7 @@ export interface Profile {
   id: string;
   telegram_id?: string;
   full_name?: string;
+  name?: string; // Alias for full_name for compatibility
   avatar_url?: string;
   email?: string;
   bot_registered_at?: string;
@@ -23,6 +24,10 @@ export interface Profile {
   is_bot_active?: boolean;
   created_at: string;
   updated_at: string;
+  // Subscription fields
+  subscription_status?: 'active' | 'inactive' | 'cancelled';
+  stripe_customer_id?: string;
+  subscription_id?: string;
 }
 
 export interface UserStats {
@@ -119,7 +124,7 @@ export class UserService {
   }
 
   // Get user by telegram ID
-  static async getUserByTelegramId(telegramId: string): Promise<Profile | null> {
+  static async getUserByTelegramId(telegramId: number | string): Promise<Profile | null> {
     if (!supabase) {
       throw new Error('Supabase connection not available');
     }
@@ -127,7 +132,7 @@ export class UserService {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('telegram_id', telegramId)
+      .eq('telegram_id', telegramId.toString())
       .single();
 
     if (error && error.code !== 'PGRST116') {
@@ -156,25 +161,6 @@ export class UserService {
     return data || [];
   }
 
-  // Update user's bot activity
-  static async updateBotActivity(telegramId: string): Promise<void> {
-    if (!supabase) {
-      throw new Error('Supabase connection not available');
-    }
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({ 
-        last_bot_activity: new Date().toISOString(),
-        is_bot_active: true
-      })
-      .eq('telegram_id', telegramId);
-
-    if (error) {
-      throw new Error(`Error updating bot activity: ${error.message}`);
-    }
-  }
-
   // Deactivate user's bot access
   static async deactivateBotUser(telegramId: string): Promise<void> {
     if (!supabase) {
@@ -191,6 +177,81 @@ export class UserService {
 
     if (error) {
       throw new Error(`Error deactivating bot user: ${error.message}`);
+    }
+  }
+
+  // Get user by email
+  static async getUserByEmail(email: string): Promise<Profile | null> {
+    if (!supabase) {
+      throw new Error('Supabase connection not available');
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      throw new Error(`Error fetching user by email: ${error.message}`);
+    }
+
+    return data;
+  }
+
+  // Link Telegram account to existing profile
+  static async linkTelegramToProfile(telegramId: number, email: string): Promise<Profile | null> {
+    if (!supabase) {
+      throw new Error('Supabase connection not available');
+    }
+
+    try {
+      // First, find the profile by email
+      const profile = await this.getUserByEmail(email);
+      if (!profile) {
+        return null;
+      }
+
+      // Update the profile with telegram_id
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ 
+          telegram_id: telegramId.toString(),
+          bot_registered_at: new Date().toISOString(),
+          last_bot_activity: new Date().toISOString(),
+          is_bot_active: true
+        })
+        .eq('email', email.toLowerCase())
+        .select()
+        .single();
+
+      if (error) {
+        throw new Error(`Error linking Telegram account: ${error.message}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error linking Telegram account:', error);
+      return null;
+    }
+  }
+
+  // Update bot activity
+  static async updateBotActivity(telegramId: number): Promise<void> {
+    if (!supabase) {
+      throw new Error('Supabase connection not available');
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ 
+        last_bot_activity: new Date().toISOString(),
+        is_bot_active: true
+      })
+      .eq('telegram_id', telegramId.toString());
+
+    if (error) {
+      throw new Error(`Error updating bot activity: ${error.message}`);
     }
   }
 

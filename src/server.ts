@@ -1,7 +1,15 @@
 import TelegramBot from 'node-telegram-bot-api';
 import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
-import { CommandHandler } from './bot/handlers/commandHandler';
+import { 
+  handleStart, 
+  handleMessage, 
+  handleHelp, 
+  handleStatus, 
+  handleProfile 
+} from './bot/handlers/commandHandler';
+import { stateManager } from './lib/stateManager';
+import { subscriptionCache } from './lib/subscriptionCache';
 
 // Load environment variables
 dotenv.config();
@@ -50,7 +58,7 @@ if (isProduction && webhookUrl) {
 
   // Webhook endpoint
   app.post(webhookPath, (req: Request, res: Response) => {
-    bot.handleUpdate(req.body);
+    // The bot will automatically handle updates when webhook is set
     res.sendStatus(200);
   });
 
@@ -60,14 +68,16 @@ if (isProduction && webhookUrl) {
       status: 'ok', 
       timestamp: new Date().toISOString(),
       mode: 'webhook',
-      webhook_url: fullWebhookUrl
+      webhook_url: fullWebhookUrl,
+      state_manager: stateManager.getStats(),
+      subscription_cache: subscriptionCache.getStats()
     });
   });
 
   // Test webhook endpoint (bonus feature)
   app.get('/test-webhook', async (req: Request, res: Response) => {
     try {
-      const webhookInfo = await bot.getWebhookInfo();
+      const webhookInfo = await bot.getWebHookInfo();
       res.json({
         status: 'ok',
         webhook_info: webhookInfo,
@@ -82,6 +92,30 @@ if (isProduction && webhookUrl) {
     }
   });
 
+  // Cache management endpoints
+  app.get('/cache-stats', (req: Request, res: Response) => {
+    res.json({
+      status: 'ok',
+      state_manager: stateManager.getStats(),
+      subscription_cache: subscriptionCache.getStats(),
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  app.post('/invalidate-cache/:telegramId', (req: Request, res: Response) => {
+    const telegramId = parseInt(req.params.telegramId);
+    if (isNaN(telegramId)) {
+      return res.status(400).json({ error: 'Invalid telegram ID' });
+    }
+    
+    subscriptionCache.invalidate(telegramId);
+    res.json({ 
+      status: 'ok', 
+      message: `Cache invalidated for user ${telegramId}`,
+      timestamp: new Date().toISOString()
+    });
+  });
+
 } else {
   // Polling mode for development
   console.log('🔄 Starting bot in polling mode...');
@@ -93,13 +127,45 @@ if (isProduction && webhookUrl) {
     res.json({ 
       status: 'ok', 
       timestamp: new Date().toISOString(),
-      mode: 'polling'
+      mode: 'polling',
+      state_manager: stateManager.getStats(),
+      subscription_cache: subscriptionCache.getStats()
+    });
+  });
+
+  // Cache management endpoints (also available in polling mode)
+  app.get('/cache-stats', (req: Request, res: Response) => {
+    res.json({
+      status: 'ok',
+      state_manager: stateManager.getStats(),
+      subscription_cache: subscriptionCache.getStats(),
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  app.post('/invalidate-cache/:telegramId', (req: Request, res: Response) => {
+    const telegramId = parseInt(req.params.telegramId);
+    if (isNaN(telegramId)) {
+      return res.status(400).json({ error: 'Invalid telegram ID' });
+    }
+    
+    subscriptionCache.invalidate(telegramId);
+    res.json({ 
+      status: 'ok', 
+      message: `Cache invalidated for user ${telegramId}`,
+      timestamp: new Date().toISOString()
     });
   });
 }
 
-// Initialize command handler
-const commandHandler = new CommandHandler(bot);
+// Set up bot command handlers
+bot.onText(/\/start/, (msg) => handleStart(bot, msg));
+bot.onText(/\/help/, (msg) => handleHelp(bot, msg));
+bot.onText(/\/status/, (msg) => handleStatus(bot, msg));
+bot.onText(/\/profile/, (msg) => handleProfile(bot, msg));
+
+// Handle all other messages
+bot.on('message', (msg) => handleMessage(bot, msg));
 
 // Bot event handlers
 bot.on('polling_error', (error: any) => {
@@ -141,6 +207,10 @@ process.on('SIGINT', async () => {
     }
   }
   
+  // Clean up managers
+  stateManager.destroy();
+  subscriptionCache.destroy();
+  
   process.exit(0);
 });
 
@@ -154,6 +224,10 @@ process.on('SIGTERM', async () => {
       bot.stopPolling();
     }
   }
+  
+  // Clean up managers
+  stateManager.destroy();
+  subscriptionCache.destroy();
   
   process.exit(0);
 }); 
